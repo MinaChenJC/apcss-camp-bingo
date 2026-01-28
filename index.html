@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>APCSS Camp 賓果</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f0f2f5; display: flex; flex-direction: column; align-items: center; padding: 20px; }
+        .container { background: white; padding: 2rem; border-radius: 15px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); text-align: center; max-width: 600px; width: 100%; }
+        h1 { color: #1a73e8; }
+        #display-area { font-size: 5rem; font-weight: bold; margin: 20px 0; min-height: 120px; color: #333; display: flex; align-items: center; justify-content: center; }
+        #card-desc { font-size: 1.2rem; color: #d93025; font-weight: bold; margin-bottom: 20px; min-height: 1.5rem; }
+        .controls { margin-bottom: 30px; }
+        button { background: #1a73e8; color: white; border: none; padding: 12px 25px; font-size: 1.1rem; border-radius: 8px; cursor: pointer; transition: 0.3s; }
+        button:hover { background: #1557b0; }
+        button:disabled { background: #ccc; cursor: not-allowed; }
+        #history { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
+        .num-tag { background: #e8f0fe; color: #1a73e8; padding: 5px 10px; border-radius: 5px; font-size: 0.9rem; }
+        .bomb-tag { background: #fce8e6; color: #d93025; border: 1px solid #d93025; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>🌪️ 味覺重啟：貢丸代號 Ω</h1>
+    
+    <div id="display-area">準備？</div>
+    <div id="card-desc"></div>
+
+    <div class="controls">
+        <button id="draw-btn" onclick="draw()">開始抽籤</button>
+        <button onclick="resetGame()" style="background:#607d8b; margin-left:10px;">重置遊戲</button>
+    </div>
+
+    <h3>已抽出的號碼：</h3>
+    <div id="history"></div>
+</div>
+
+<script>
+    let numbers = Array.from({length: 48}, (_, i) => i + 1); // 基本 1-48 號
+    // 加入功能卡到池子中
+    let pool = [...numbers, "💣 炸彈", "💣 炸彈", "🔫 偷襲", "😇 復活！", "🌟 萬用號碼"];
+    let drawn = [];
+
+    const display = document.getElementById('display-area');
+    const desc = document.getElementById('card-desc');
+    const historyDiv = document.getElementById('history');
+    const drawBtn = document.getElementById('draw-btn');
+
+    function draw() {
+        if (pool.length === 0) {
+            display.innerText = "結束";
+            desc.innerText = "所有號碼與功能卡已抽完！";
+            drawBtn.disabled = true;
+            return;
+        }
+
+        const index = Math.floor(Math.random() * pool.length);
+        const result = pool.splice(index, 1)[0];
+        drawn.push(result);
+
+        // 顯示邏輯
+        display.innerText = result;
+        updateDescription(result);
+        updateHistory();
+    }
+
+    function updateDescription(res) {
+        if (res === "💣 炸彈") {
+            desc.innerText = "喔不！炸彈引爆！這回合每組必須取消一個已標記的號碼";
+            display.style.color = "#d93025";
+        } else if (res === "🔫 偷襲") {
+            desc.innerText = "嘻嘻！每組可以把下一組的一個標記取消！";
+            display.style.color = "#f9ab00";
+        } else if (res === "😇 復活！") {
+            desc.innerText = "這回合可以復活一個剛剛取消掉的標記";
+            display.style.color = "#5f6368";
+        } else if (res === "🌟 萬用號碼") {
+            desc.innerText = "幸運女神降臨！每個小組可以自由選擇一個數字標記！";
+            display.style.color = "#188038";
+        } else {
+            desc.innerText = "";
+            display.style.color = "#333";
+        }
+    }
+
+    function updateHistory() {
+        historyDiv.innerHTML = drawn.map(item => {
+            const isAction = typeof item === 'string';
+            return `<span class="num-tag ${isAction ? 'bomb-tag' : ''}">${item}</span>`;
+        }).join('');
+    }
+
+    function resetGame() {
+        if(confirm("確定要重置所有號碼嗎？")) {
+            pool = [...Array.from({length: 48}, (_, i) => i + 1), "💣 炸彈", "💣 炸彈", "🔫 偷襲", "😇 復活！", "🌟 萬用號碼"];
+            drawn = [];
+            display.innerText = "準備？";
+            display.style.color = "#333";
+            desc.innerText = "";
+            historyDiv.innerHTML = "";
+            drawBtn.disabled = false;
+        }
+    }
+</script>
+
+</body>
+</html>
