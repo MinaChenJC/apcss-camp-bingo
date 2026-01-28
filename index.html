@@ -37,71 +37,134 @@
 </div>
 
 <script>
-    let numbers = Array.from({length: 48}, (_, i) => i + 1); // 基本 1-48 號
-    // 加入功能卡到池子中
-    let pool = [...numbers, "💣 炸彈", "💣 炸彈", "🔫 偷襲", "😇 復活！", "🌟 萬用號碼"];
-    let drawn = [];
+// 1. 初始化基礎號碼
+let numbers = Array.from({length: 48}, (_, i) => i + 1); 
 
-    const display = document.getElementById('display-area');
-    const desc = document.getElementById('card-desc');
-    const historyDiv = document.getElementById('history');
-    const drawBtn = document.getElementById('draw-btn');
+// 2. 初始化池子 (一開始只有數字)
+let pool = [...numbers]; 
 
-    function draw() {
-        if (pool.length === 0) {
-            display.innerText = "結束";
-            desc.innerText = "所有號碼與功能卡已抽完！";
-            drawBtn.disabled = true;
-            return;
-        }
+// 3. 分類準備特殊卡片
+let negativeQueue = ["💣 炸彈", "💣 炸彈", "🔪 偷襲"]; 
+let luckQueue = ["🌟 萬用號碼"]; // 萬用號碼單獨一類，抽完 3 個數字就解鎖
+let resurrectionQueue = ["😇 復活！"]; 
 
-        const index = Math.floor(Math.random() * pool.length);
-        const result = pool.splice(index, 1)[0];
-        drawn.push(result);
+// 4. 狀態追蹤
+let drawn = [];
+let noActionCount = 0; // 連續抽到「純數字」的計數器
+const FORCE_TRIGGER_LIMIT = 6; // 保底機制：每 6 個數字必出一張特殊卡
 
-        // 顯示邏輯
-        display.innerText = result;
-        updateDescription(result);
-        updateHistory();
+const display = document.getElementById('display-area');
+const desc = document.getElementById('card-desc');
+const historyDiv = document.getElementById('history');
+const drawBtn = document.getElementById('draw-btn');
+
+function draw() {
+    // 檢查是否全部抽完 (包含數字與所有特殊道具)
+    if (pool.length === 0 && negativeQueue.length === 0 && luckQueue.length === 0 && resurrectionQueue.length === 0) {
+        display.innerText = "結束";
+        desc.innerText = "所有內容已抽完！";
+        drawBtn.disabled = true;
+        return;
     }
 
-    function updateDescription(res) {
-        if (res === "💣 炸彈") {
-            desc.innerText = "喔不！炸彈引爆！這回合每組必須取消一個已標記的號碼";
-            display.style.color = "#d93025";
-        } else if (res === "🔫 偷襲") {
-            desc.innerText = "嘻嘻！每組可以把下一組的一個標記取消！";
-            display.style.color = "#f9ab00";
-        } else if (res === "😇 復活！") {
-            desc.innerText = "這回合可以復活一個剛剛取消掉的標記";
-            display.style.color = "#5f6368";
-        } else if (res === "🌟 萬用號碼") {
-            desc.innerText = "幸運女神降臨！每個小組可以自由選擇一個數字標記！";
-            display.style.color = "#188038";
+    let result;
+    let numberCount = drawn.filter(item => typeof item === 'number').length;
+
+    // 判斷各類卡片解鎖狀態
+    let negativeUnlocked = (numberCount >= 3 && negativeQueue.length > 0);
+    let luckUnlocked = (numberCount >= 3 && luckQueue.length > 0); // 萬用號碼也是 3 個數字後解鎖
+    let resurrectionUnlocked = (resurrectionQueue.length > 0 && drawn.some(item => item === "💣 炸彈" || item === "🔪 偷襲"));
+
+    // --- 核心邏輯：保底觸發 ---
+    if ((negativeUnlocked || luckUnlocked || resurrectionUnlocked) && (noActionCount >= FORCE_TRIGGER_LIMIT)) {
+        result = triggerSpecialCard(negativeUnlocked, luckUnlocked, resurrectionUnlocked);
+        noActionCount = 0;
+    } else {
+        // --- 正常抽取：將「已解鎖」的道具暫時混入隨機池 ---
+        let currentTempPool = [...pool];
+        if (negativeUnlocked) currentTempPool.push(...negativeQueue);
+        if (luckUnlocked) currentTempPool.push(...luckQueue);
+        if (resurrectionUnlocked) currentTempPool.push(...resurrectionQueue);
+
+        const index = Math.floor(Math.random() * currentTempPool.length);
+        result = currentTempPool[index];
+
+        // 更新狀態
+        if (typeof result === 'number') {
+            pool = pool.filter(n => n !== result);
+            noActionCount++;
         } else {
-            desc.innerText = "";
-            display.style.color = "#333";
+            removeSpecialFromQueue(result);
+            noActionCount = 0;
         }
     }
 
-    function updateHistory() {
-        historyDiv.innerHTML = drawn.map(item => {
-            const isAction = typeof item === 'string';
-            return `<span class="num-tag ${isAction ? 'bomb-tag' : ''}">${item}</span>`;
-        }).join('');
-    }
+    drawn.push(result);
+    display.innerText = result;
+    updateDescription(result);
+    updateHistory();
+}
 
-    function resetGame() {
-        if(confirm("確定要重置所有號碼嗎？")) {
-            pool = [...Array.from({length: 48}, (_, i) => i + 1), "💣 炸彈", "💣 炸彈", "🔫 偷襲", "😇 復活！", "🌟 萬用號碼"];
-            drawn = [];
-            display.innerText = "準備？";
-            display.style.color = "#333";
-            desc.innerText = "";
-            historyDiv.innerHTML = "";
-            drawBtn.disabled = false;
-        }
+// 從對應的 Queue 中移除已抽出的道具
+function removeSpecialFromQueue(card) {
+    if (negativeQueue.includes(card)) {
+        negativeQueue.splice(negativeQueue.indexOf(card), 1);
+    } else if (luckQueue.includes(card)) {
+        luckQueue.splice(luckQueue.indexOf(card), 1);
+    } else if (resurrectionQueue.includes(card)) {
+        resurrectionQueue.splice(resurrectionQueue.indexOf(card), 1);
     }
+}
+
+// 強制取得一張已解鎖的特殊卡
+function triggerSpecialCard(neg, luck, res) {
+    let temp = [];
+    if (neg) temp.push(...negativeQueue);
+    if (luck) temp.push(...luckQueue);
+    if (res) temp.push(...resurrectionQueue);
+    
+    const i = Math.floor(Math.random() * temp.length);
+    const card = temp[i];
+    removeSpecialFromQueue(card);
+    return card;
+}
+
+function updateDescription(res) {
+    if (res === "💣 炸彈") {
+        desc.innerText = "喔不！炸彈引爆！這回合每組必須取消一個已標記的號碼";
+        display.style.color = "#d93025";
+    } else if (res === "🔪 偷襲") {
+        desc.innerText = "嘻嘻！每組可以把下一組的一個標記取消！";
+        display.style.color = "#f9ab00";
+    } else if (res === "🌟 萬用號碼") {
+        desc.innerText = "幸運女神降臨！每個小組可以自由選擇一個數字標記！";
+        display.style.color = "#188038";
+    } else if (res === "😇 復活！") {
+        desc.innerText = "這回合可以復活一個剛剛取消掉的標記";
+        display.style.color = "#1a73e8";
+    } else {
+        desc.innerText = "";
+        display.style.color = "#333";
+    }
+}
+
+function updateHistory() {
+    historyDiv.innerHTML = drawn.map(item => {
+        const isAction = typeof item === 'string';
+        // 幫萬用號碼加一個特別的顏色
+        let specialClass = "";
+        if (item === "🌟 萬用號碼") specialClass = "luck-tag";
+        else if (isAction) specialClass = "bomb-tag";
+
+        return `<span class="num-tag ${specialClass}">${item}</span>`;
+    }).join('');
+}
+
+function resetGame() {
+    if(confirm("確定要重置「味覺重啟：貢丸代號 Ω」嗎？")) {
+        location.reload();
+    }
+}
 </script>
 
 </body>
