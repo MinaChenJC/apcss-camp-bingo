@@ -38,7 +38,7 @@
 </div>
 
 <script>
-    // --- 1. 變數初始化 ---
+    // 變數初始化
     let pool = Array.from({length: 48}, (_, i) => i + 1); // 1-48 號
     let negativeQueue = ["💣 炸彈", "💣 炸彈", "🔪 偷襲"]; 
     let luckQueue = ["🌟 萬用號碼"]; 
@@ -53,7 +53,7 @@
     const historyDiv = document.getElementById('history');
     const drawBtn = document.getElementById('draw-btn');
 
-    // --- 2. 核心抽籤邏輯 ---
+    // 抽籤邏輯
     function draw() {
         if (pool.length === 0 && negativeQueue.length === 0 && luckQueue.length === 0 && resurrectionQueue.length === 0) {
             display.innerText = "結束";
@@ -65,14 +65,14 @@
         let result;
         let numberCount = drawn.filter(item => typeof item === 'number').length;
 
-        // 階段 A：前三抽絕對保護 (純數字)
+        // 前三抽純數字
         if (numberCount < 3) {
             const index = Math.floor(Math.random() * pool.length);
             result = pool[index];
             pool.splice(index, 1);
             noActionCount++;
         } 
-        // 階段 B：混沌期 (三抽後)
+        // 三抽後加入道具
         else {
             let negUnlocked = (negativeQueue.length > 0); 
             let luckUnlocked = (luckQueue.length > 0); 
@@ -109,7 +109,7 @@
         updateHistory();
     }
 
-    // --- 3. 輔助工具函式 ---
+    // 輔助工具函式
 
     function triggerSpecialCard(neg, luck, res) {
         let temp = [];
